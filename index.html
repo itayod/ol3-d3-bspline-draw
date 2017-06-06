@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Spline Editor</title>
+<style>
+
+    body {
+        font: 13px sans-serif;
+        position: relative;
+        width: 960px;
+        height: 500px;
+    }
+    #map{
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+    #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
+    }
+    #buttons {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        z-index: 999;
+    }
+
+    svg {
+        position: absolute;
+        z-index: 99;
+    }
+
+    rect {
+        fill: none;
+        pointer-events: all;
+    }
+
+    circle,
+    .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 8px;
+    }
+
+    circle {
+        fill: #fff;
+        fill-opacity: .2;
+        cursor: move;
+    }
+
+    .selected {
+        fill: #ff7f0e;
+        stroke: #ff7f0e;
+    }
+
+
+</style>
+<div id="map" class="map"></div>
+
+<div id="buttons">
+
+    <button id="draw" type="button"> draw </button>
+    <button id="edit" type="button"> edit </button>
+    <button id="save" type="button"> save </button>
+</div>
+<script src="https://openlayers.org/en/v3.19.1/build/ol-debug.js"></script>
+<script src="./d3.v3.min.js"></script>
+<script src="./drawInteraction.js"></script>
+<script src="./map.js"></script>
+<script>
+    var overlay = d3.select('div.ol-viewport').append("div").attr("id", "overlay")
+    var drawInteraction = new DrawInteraction(960,500,overlay,map);
+
+    d3.select("#save")
+            .on("click",save)
+
+    var SVG_MAP_RATIO = 10;
+
+    function save() {
+        var points = drawInteraction.getPoint();
+        var drawSvg = drawInteraction.getSvg();
+        var mapExtent = map.getExtent();
+        var lineData = getLineData(points);
+        var pathSvg = createPath(lineData);
+        var svg = createSvgSource(pathSvg);
+        var mysvg = new Image();
+        mysvg.src = 'data:image/svg+xml,' + escape(svg);
+
+            drawSvg.remove()
+            var svgLayer = new ol.layer.Image({
+                source: new ol.source.ImageStatic({
+                    url: mysvg.src, //'https://upload.wikimedia.org/wikipedia/commons/f/fd/Ghostscript_Tiger.svg',
+    //            projection: projection,
+                    imageExtent: mapExtent
+                })
+            })
+
+        map.addLayer(svgLayer)
+
+        var source = new ol.source.Vector({wrapX: false});
+
+        var vector = new ol.layer.Vector({
+            source: source
+        });
+
+        map.addLayer(vector);
+
+        var draw = new ol.interaction.Draw({
+            source: source,
+            type: /** @type {ol.geom.GeometryType} */ ('Point')
+        });
+
+        map.addInteraction(draw);
+    }
+
+    function getLineData(points) {
+        var lineData = [];
+
+        for(var i in points) {
+            var coords = map.getCoordinateFromPixel(points[i]);
+            lineData.push({x: coords[0] * SVG_MAP_RATIO, y: coords[1] * SVG_MAP_RATIO});
+        }
+
+        return lineData;
+    }
+
+    function createSvgSource(pathSvg) {
+//        var maxX = extent[2];
+//        var maxY = extent[3];
+//        var svg = document.createElement("svg");
+//        var svg = d3.select(svg)
+//                .attr("width", maxX * SVG_MAP_RATIO * SVG_MAP_RATIO + 'px')
+//                .attr("height", maxY * SVG_MAP_RATIO * SVG_MAP_RATIO + 'px')
+//                .attr("viewBox", "0 0 " + maxX * SVG_MAP_RATIO + " " + maxY * SVG_MAP_RATIO)
+//                .attr("enable-background", "new 0 0 " + maxX * SVG_MAP_RATIO + " " + maxY * SVG_MAP_RATIO);
+//
+        var svg = '<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1800px" height="2200px" viewBox="0 0 180 220" enable-background="new 0 0 18 22" xml:space="preserve">'
+                + pathSvg.node().innerHTML + '</svg>';
+
+        return svg;
+
+    }
+
+    function createPath(lineData) {
+        var svgElem = document.createElement("svg");
+        var svg = d3.select(svgElem)
+        var lineFunction = d3.svg.line()
+                .x(function(d) { return d.x; })
+                .y(function(d) { return 220 - d.y; })
+                .interpolate("basis");
+
+
+        //The line SVG Path we draw
+        var path = svg.append("path")
+                .attr("d", lineFunction(lineData))
+                .attr("stroke", "blue")
+                .attr("stroke-width", 2)
+                .attr("fill", "none");
+
+        return svg;
+    }
+
+
+
+    map.on("click",function(e) {
+
+    })
+
+
+</script>
